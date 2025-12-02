@@ -465,7 +465,7 @@ def sea_decomp(date_f,input_f,output_f):
 
 with col3:
     # st.image("./proekspert-logo-valge.png")
-    st.title("copyright © 2025 Alfonso T. Garcia-Sosa")
+    st.subheader("copyright © 2025 Alfonso T. Garcia-Sosa")
 
 
 with col4:
