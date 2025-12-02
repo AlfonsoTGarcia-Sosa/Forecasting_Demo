@@ -464,7 +464,9 @@ def sea_decomp(date_f,input_f,output_f):
         return sea_decomp_data
 
 with col3:
-    st.image("./proekspert-logo-valge.png")
+    # st.image("./proekspert-logo-valge.png")
+
+
 
 with col4:
     st.title("Multi-Step Deep Learning Time Series Forecasting")
