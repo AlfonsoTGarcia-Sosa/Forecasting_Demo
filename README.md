@@ -117,7 +117,9 @@ Input feature sliders available for LSTM model after training
 References
  
 [LSTM Neural Networks for Time Series Forecasting](https://machinelearningmastery.com/lstm-neural-networks-for-time-series-forecasting/)
+
 [Cumulative Ranked Probability Score](https://www.lokad.com/continuous-ranked-probability-score)
+
 [Seasonal Decomposition of Time Series](https://otexts.com/fpp2/decomposition.html)
 
 # Support
