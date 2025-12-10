@@ -1,9 +1,6 @@
 
-#add sliders for changing the sensor values of the variables selected that are not the target
 
-#add metric of cumulative relative precision rank (CRPS) [done]
-
-#add another model, like lightGBM
+### uses python 3.10 ###
 
 import streamlit as st
 import pandas as pd
