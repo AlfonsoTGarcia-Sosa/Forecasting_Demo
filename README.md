@@ -50,11 +50,7 @@ streamlit run LSTM_LightGBM_demo_ATGS.py
 <img width="377" height="233" alt="Screenshot 2025-12-30 at 19 10 25" src="https://github.com/user-attachments/assets/7496585a-d293-4759-9577-e2a10310e976" />
 
 ---
----
 
-<img width="575" height="530" alt="Screenshot 2025-12-30 at 19 12 20" src="https://github.com/user-attachments/assets/7cee4506-dc35-4a9b-af1d-e5961a6ea776" />
-
-===
 
 ## Requirements
 
