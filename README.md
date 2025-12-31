@@ -47,9 +47,25 @@ streamlit run LSTM_LightGBM_demo_ATGS.py
 5. Click **Train Model** → view predictions
 
 ---
-<img width="377" height="233" alt="Screenshot 2025-12-30 at 19 10 25" src="https://github.com/user-attachments/assets/7496585a-d293-4759-9577-e2a10310e976" />
 
----
+
+<img width="377" height="233" alt="Screenshot 2025-12-30 at 19 10 25" src="https://github.com/user-attachments/assets/fc0fd79b-0498-41ce-a194-a07d74303a01" />
+
+
+<img width="1131" height="670" alt="Screenshot 2025-12-31 at 22 43 44" src="https://github.com/user-attachments/assets/031a8454-ed1e-41f8-b881-b0372c4a9040" />
+
+
+<img width="663" height="848" alt="Screenshot 2025-12-31 at 22 50 53" src="https://github.com/user-attachments/assets/5d10d069-5c57-400d-8ae6-eec6b42ceb29" />
+
+
+<img width="663" height="600" alt="Screenshot 2025-12-31 at 22 55 14" src="https://github.com/user-attachments/assets/ef6654df-a361-4f4f-a9a2-ced3ccf3719f" />
+
+
+
+<img width="663" height="331" alt="Screenshot 2025-12-31 at 22 46 52" src="https://github.com/user-attachments/assets/a04d007a-7262-4083-8de4-3ae4a78bb719" />
+
+
+<img width="663" height="631" alt="Screenshot 2025-12-31 at 22 52 26" src="https://github.com/user-attachments/assets/75adff2b-eb65-444b-a110-fe3c9e759d0c" />
 
 
 ## Requirements
