@@ -255,6 +255,11 @@ def build_lgbm_supervised(df: pd.DataFrame,
     """
     df = df.copy()
 
+    # Ensure no NaN in original columns before creating lags (robust imputation)
+    for col in [target_col] + list(exo_cols):
+        if col in df.columns:
+            df[col] = df[col].interpolate(method='linear').ffill().bfill()
+
     # Target lags
     for k in range(1, lag_steps + 1):
         df[f"{target_col}_lag_{k}"] = df[target_col].shift(k)
@@ -370,6 +375,58 @@ def update_prediction():
         # st.write("Debug - Full error:", str(e.__class__.__name__), str(e))
         import traceback
         # st.write("Debug - Traceback:", traceback.format_exc())
+
+
+def update_prediction_lgbm():
+    """Update LightGBM predictions when sliders change."""
+    current_time = time.time()
+    if current_time - st.session_state.last_update_time < 0.1:  # 100ms debounce
+        return
+
+    if st.session_state.model is None:
+        return
+
+    if st.session_state.get('model_type') != 'LightGBM':
+        return
+
+    try:
+        # Get the stored input feature names and feature columns
+        lgbm_input_features = st.session_state.get('lgbm_input_features', [])
+        feat_cols = st.session_state.get('lgbm_feature_cols', [])
+
+        if not lgbm_input_features or not feat_cols:
+            return
+
+        # Copy the anchor row (last feature row used for inference)
+        X_modified = st.session_state.lgbm_anchor.copy()
+
+        # Update _lag_0 columns with slider values (current values)
+        for feature in lgbm_input_features:
+            slider_key = f"slider_{feature}"
+            lag_0_col = f"{feature}_lag_0"
+
+            if slider_key in st.session_state and lag_0_col in X_modified.columns:
+                X_modified[lag_0_col] = st.session_state[slider_key]
+
+        # Get predictions from all H models
+        lgbm_models = st.session_state.model
+        lgbm_preds = np.array([mdl.predict(X_modified)[0] for mdl in lgbm_models])
+
+        # Update predictions while keeping original dates and actual values
+        st.session_state.model_save = [
+            st.session_state.model_save[0],  # Keep original loss
+            lgbm_preds,                       # Update predictions
+            st.session_state.model_save[2],  # Keep actual values
+            st.session_state.model_save[3]   # Keep dates
+        ]
+
+        st.session_state.last_update_time = current_time
+
+        # Force streamlit to rerun
+        st.experimental_rerun()
+
+    except Exception as e:
+        st.error(f"Error updating LightGBM prediction: {str(e)}")
 
 
 def preProcessData(date_f, input_f, output_f):
@@ -521,12 +578,46 @@ with col1:
             lag_steps = st.number_input('Lag Steps:',step=1,min_value=1)
             forecast_steps = st.number_input('Forecast Steps:',step=1,min_value=1)
 
+            # Forecast start date selector (only show after preprocessing)
+            forecast_start_idx = None
+            if st.session_state.sd_click and 'data' in dir() or st.session_state.get('preprocessed_data') is not None:
+                # Store preprocessed data in session state for access here
+                if st.session_state.sd_click and 'data' in dir():
+                    st.session_state.preprocessed_data = data
+
+                if st.session_state.get('preprocessed_data') is not None:
+                    prep_data = st.session_state.preprocessed_data
+                    dates = prep_data[date_f]
+
+                    st.divider()
+                    st.subheader("Forecast Start Date:")
+                    st.info("Select where forecasting should begin. Training uses data before this date.")
+
+                    # Create a slider with date index
+                    min_idx = lag_steps + 1  # Need at least lag_steps rows for training
+                    max_idx = len(dates) - forecast_steps  # Leave room for forecast
+
+                    if min_idx < max_idx:
+                        forecast_start_idx = st.slider(
+                            "Forecast starts at:",
+                            min_value=min_idx,
+                            max_value=max_idx,
+                            value=max_idx,  # Default to end (current behavior)
+                            format="%d",
+                            key="forecast_start_slider"
+                        )
+                        selected_date = dates.iloc[forecast_start_idx]
+                        st.write(f"**Selected date:** {selected_date}")
+                        st.write(f"Training: rows 0-{forecast_start_idx-1} | Forecast: rows {forecast_start_idx}-{forecast_start_idx + forecast_steps - 1}")
+                    else:
+                        st.warning("Not enough data for selected lag/forecast steps")
+
             if (lag_steps+forecast_steps)>(df.shape[0]-forecast_steps):
                 st.error(f'Lag Steps + Forecast Steps = {lag_steps+forecast_steps} should be <= {df.shape[0]-forecast_steps} (i.e Train set:({lag_steps+forecast_steps}) + Test set:({forecast_steps}) = {lag_steps+forecast_steps+forecast_steps} (>57))', icon="ℹ️")
                 st.session_state.disable_opt = True
             else:
                 st.session_state.disable_opt = False
-            
+
             st.divider()
 
             # Model Selection
@@ -556,8 +647,8 @@ with col1:
                 num_leaves = st.slider('Number of Leaves:', 10, 100, 31)
                 st.divider()
             
-            # Add input feature sliders (only for LSTM)
-            if input_f and model_choice == "LSTM":  # Only show if input features are selected
+            # Add input feature sliders (for both LSTM and LightGBM)
+            if input_f:  # Only show if input features are selected
                 st.subheader("Input Feature Adjustments")
                 st.info("Adjust input features for prediction (optional)")
                 
@@ -584,6 +675,13 @@ with col1:
                                 # Ensure current_val is within bounds
                                 current_val = max(min_val, min(max_val, current_val))
                                 
+                                # Choose callback based on model type
+                                if st.session_state.model is not None:
+                                    model_type = st.session_state.get('model_type', 'LSTM')
+                                    callback = update_prediction_lgbm if model_type == 'LightGBM' else update_prediction
+                                else:
+                                    callback = None
+
                                 return st.slider(
                                     f"{feature}",
                                     min_value=min_val,
@@ -592,7 +690,7 @@ with col1:
                                     step=0.0001,
                                     key=f"slider_{feature}",
                                     format="%.4f",
-                                    on_change=update_prediction if st.session_state.model is not None else None
+                                    on_change=callback
                                 )
                             except Exception as e:
                                 st.warning(f"Could not create slider for {feature}: {str(e)}")
@@ -613,8 +711,13 @@ with col1:
 
             if sr:
                 with st.container(border=True):
-                    df_train = data[:-forecast_steps]
-                    df_test = data[-forecast_steps:]
+                    # Use forecast_start_idx if set, otherwise default to end
+                    if forecast_start_idx is not None:
+                        df_train = data.iloc[:forecast_start_idx]
+                        df_test = data.iloc[forecast_start_idx:forecast_start_idx + forecast_steps]
+                    else:
+                        df_train = data[:-forecast_steps]
+                        df_test = data[-forecast_steps:]
 
                     if model_choice == "LSTM":
                         # ===== LSTM TRAINING =====
@@ -756,6 +859,8 @@ with col1:
 
                         st.session_state.model = model
                         st.session_state.model_type = "LSTM"
+                        st.session_state.scalers = st.session_state.scalers_train
+                        st.session_state.last_sequence = st.session_state.last_sequence_train
                         del model; gc.collect()
                         if device.type == "cuda":
                             torch.cuda.empty_cache()
@@ -782,10 +887,18 @@ with col1:
                             N = len(supervised_df)
                             H = int(forecast_steps)
                             train_end = N - H
-                            
+
+                            # Safety check: ensure we have enough data
+                            if N == 0:
+                                st.error("No data available after preprocessing. Check for missing values in your data.")
+                                st.stop()
+                            if train_end <= H:
+                                st.error(f"Not enough data for training. Have {N} rows after lag creation, need at least {2*H+1} rows. Try reducing Lag Steps or Forecast Steps.")
+                                st.stop()
+
                             X_all = supervised_df[feat_cols]
                             y_all = supervised_df[output_f]
-                            
+
                             X_train_lgbm = X_all.iloc[:train_end]
                             X_anchor = X_all.iloc[train_end-1:train_end]
                             
@@ -839,6 +952,7 @@ with col1:
                             st.session_state.model_type = "LightGBM"
                             st.session_state.lgbm_feature_cols = feat_cols
                             st.session_state.lgbm_anchor = X_anchor
+                            st.session_state.lgbm_input_features = input_f  # Store for slider callback
                             
                             st.session_state.model_save = [
                                 f'{train_rmse:.4f}',
